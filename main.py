@@ -2,18 +2,9 @@ import requests
 
 
 class Package:
-    __data = {
-        "name": "string",
-        "epoch": 0,
-        "version": "string",
-        "release": "string",
-        "arch": "string",
-        "disttag": "string",
-        "buildtime": 0,
-        "source": "string"
-    }
 
     def __init__(self, data):
+        self.__data = dict()
         self.__data['name'] = data['name']
         self.__data['epoch'] = data['epoch']
         self.__data['version'] = data['version']
@@ -23,37 +14,51 @@ class Package:
         self.__data["buildtime"] = data['buildtime']
         self.__data["source"] = data['source']
 
+    def __repr__(self):
+        return str((
+            self.__data['name'],
+            self.__data['version'],
+            self.__data['release'],
+            self.__data['arch'],
+            self.__data["disttag"],
+            self.__data["source"]
+        ))
+
     def __hash__(self):
-        return hash(self.__data['name'])
+        return hash(self.__data['name'] + self.__data['version'] + self.__data['release'] + self.__data['arch'] +
+                    self.__data["disttag"] + self.__data["source"])
 
     def __eq__(self, other):
-        if self.__data['name'] == other.__data['name'] :
+        if self.__data['name'] == other.__data['name'] and self.__data['version'] == other.__data['version'] and\
+                self.__data['release'] == other.__data['release'] and self.__data['arch'] == other.__data['arch']:
             return True
-        else:
-            return False
+        return False
 
-    def __repr__(self):
-        return str({
-            self.__data['name'],
-            self.__data['version'],
-            self.__data['release']
-        })
 
     def __str__(self):
-        return str({
+        return str((
             self.__data['name'],
             self.__data['version'],
             self.__data['release']
-        })
+        ))
 
 
-def get_all_packages():
-    response_sisyphus = requests.get('https://rdb.altlinux.org/api/export/branch_binary_packages/sisyphus').json()
-    response_p10 = requests.get('https://rdb.altlinux.org/api/export/branch_binary_packages/p10').json()
-    set_sisyphus = set(Package(response_sisyphus['packages'][i]) for i in range(0, len(response_sisyphus['packages'])))
-    set_p10 = set(Package(response_p10['packages'][i]) for i in range(0, len(response_p10['packages'])))
-
-    print(f'{set_p10 - set_sisyphus=}')
+def get_packages_branch(branch_name: str) -> set:
+    response = requests.get(f'https://rdb.altlinux.org/api/export/branch_binary_packages/{branch_name}').json()
+    return set(Package(response['packages'][i]) for i in range(0, len(response['packages'])))
 
 
-get_all_packages()
+def get_uniq_packages_branch(branch_name_1: str, branch_name_2: str) -> set:
+    set_branch_name_1, set_branch_name_2 = get_packages_branch(branch_name_1), get_packages_branch(branch_name_2)
+    return set_branch_name_2 - set_branch_name_1
+
+
+def get_packages_version_release(branch_name_1: str, branch_name_2: str) -> set:
+    set_branch_name_1, set_branch_name_2 = get_packages_branch(branch_name_1), get_packages_branch(branch_name_2)
+    intersection_list = set_branch_name_2 & set_branch_name_1
+    return intersection_list
+
+
+print(get_uniq_packages_branch('sisyphus', 'p10'))
+print(get_packages_version_release('sisyphus', 'p10'))
+
